@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
     Description: Solo POM.
-    Version: 3.16.1.35, Apr 11, 2017
+    Version: 3.16.1.38, May 25, 2017
     Author: <a href="http://88250.b3log.org">Liang Ding</a>
     Author: <a href="http://www.annpeter.cn">Ann Peter</a>
     Author: <a href="http://vanessa.b3log.org">Vanessa</a>
@@ -14,9 +14,9 @@
     <artifactId>solo</artifactId>
     <packaging>war</packaging>
     <name>Solo</name>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <description>
-        A blogging system written in Java, feel free to create your or your team own blog. 一个用 Java 实现的博客系统，为你或你的团队创建个博客吧。
+        A blogging system written in Java, feel free to create your or your team own blog. 一个用 Java 实现的博客系统，为你或你的团队创建个博客吧！
     </description>
     <inceptionYear>2010</inceptionYear>
 
@@ -92,14 +92,6 @@
         <url>https://github.com/b3log/solo/issues</url>
     </issueManagement>
 
-    <mailingLists>
-        <mailingList>
-            <name>b3log-solo-dev</name>
-            <archive>https://groups.google.com/group/b3log-solo-dev</archive>
-            <post>b3log-solo-dev@googlegroups.com</post>
-        </mailingList>
-    </mailingLists>
-
     <scm>
         <url>https://github.com/b3log/solo</url>
     </scm>
@@ -107,7 +99,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <org.b3log.latke.version>2.3.10</org.b3log.latke.version>
+        <org.b3log.latke.version>2.3.11</org.b3log.latke.version>
 
         <servlet.version>3.1.0</servlet.version>
         <slf4j.version>1.7.5</slf4j.version>
@@ -431,19 +423,31 @@
         <finalName>solo</finalName>
     </build>
 
-    <repositories>
-        <repository>
-            <id>aliyun</id>
-            <url>http://maven.aliyun.com/nexus/content/groups/public</url>
-        </repository>
-    </repositories>
+    <profiles>
+        <profile>
+            <id>ci</id>
+        </profile>
 
-    <pluginRepositories>
-        <pluginRepository>
-            <id>aliyun</id>
-            <url>http://maven.aliyun.com/nexus/content/groups/public</url>
-        </pluginRepository>
-    </pluginRepositories>
+        <profile>
+            <id>dev</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <repositories>
+                <repository>
+                    <id>aliyun</id>
+                    <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+                </repository>
+            </repositories>
+
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>aliyun</id>
+                    <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
 
 </project>
 

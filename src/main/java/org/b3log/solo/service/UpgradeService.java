@@ -51,7 +51,7 @@ import java.sql.Statement;
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
  * @author <a href="mailto:dongxu.wang@acm.org">Dongxu Wang</a>
- * @version 1.2.0.11, Apr 10, 2017
+ * @version 1.2.0.13, May 25, 2017
  * @since 1.2.0
  */
 @Service
@@ -61,51 +61,62 @@ public class UpgradeService {
      * Logger.
      */
     private static final Logger LOGGER = Logger.getLogger(UpgradeService.class);
+
     /**
      * Step for article updating.
      */
     private static final int STEP = 50;
+
     /**
      * Mail Service.
      */
     private static final MailService MAIL_SVC = MailServiceFactory.getMailService();
+
     /**
      * Old version.
      */
-    private static final String FROM_VER = "1.9.0";
+    private static final String FROM_VER = "2.0.0";
+
     /**
      * New version.
      */
     private static final String TO_VER = SoloServletListener.VERSION;
+
     /**
      * Whether the email has been sent.
      */
     private static boolean sent = false;
+
     /**
      * Article repository.
      */
     @Inject
     private ArticleRepository articleRepository;
+
     /**
      * Comment repository.
      */
     @Inject
     private CommentRepository commentRepository;
+
     /**
      * User repository.
      */
     @Inject
     private UserRepository userRepository;
+
     /**
      * Option repository.
      */
     @Inject
     private OptionRepository optionRepository;
+
     /**
      * Preference Query Service.
      */
     @Inject
     private PreferenceQueryService preferenceQueryService;
+
     /**
      * Language service.
      */
@@ -137,7 +148,6 @@ public class UpgradeService {
 
             if (!sent) {
                 notifyUserByEmail();
-
                 sent = true;
             }
         } catch (final Exception e) {
@@ -158,36 +168,16 @@ public class UpgradeService {
         LOGGER.log(Level.INFO, "Upgrading from version [{0}] to version [{1}]....", FROM_VER, TO_VER);
 
         Transaction transaction = null;
-
         try {
-            final Connection connection = Connections.getConnection();
-            final Statement statement = connection.createStatement();
-
-            final String tablePrefix = Latkes.getLocalProperty("jdbc.tablePrefix") + "_";
-            statement.execute("CREATE TABLE `" + tablePrefix + "category` (\n" +
-                    "  `oId` varchar(19) NOT NULL,\n" +
-                    "  `categoryTitle` varchar(64) NOT NULL,\n" +
-                    "  `categoryURI` varchar(32) NOT NULL,\n" +
-                    "  `categoryDescription` text NOT NULL,\n" +
-                    "  `categoryOrder` int(11) NOT NULL,\n" +
-                    "  `categoryTagCnt` int(11) NOT NULL,\n" +
-                    "  PRIMARY KEY (`oId`)\n" +
-                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-            statement.execute("CREATE TABLE `" + tablePrefix + "category_tag` (\n" +
-                    "  `oId` varchar(19) NOT NULL,\n" +
-                    "  `category_oId` varchar(19) NOT NULL,\n" +
-                    "  `tag_oId` varchar(19) NOT NULL,\n" +
-                    "  PRIMARY KEY (`oId`)\n" +
-                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-            statement.close();
-            connection.commit();
-            connection.close();
-
             transaction = optionRepository.beginTransaction();
 
             final JSONObject versionOpt = optionRepository.get(Option.ID_C_VERSION);
             versionOpt.put(Option.OPTION_VALUE, TO_VER);
             optionRepository.update(Option.ID_C_VERSION, versionOpt);
+
+            final JSONObject editorTypeOpt = optionRepository.get(Option.ID_C_EDITOR_TYPE);
+            editorTypeOpt.put(Option.OPTION_VALUE, Option.DefaultPreference.DEFAULT_EDITOR_TYPE);
+            optionRepository.update(Option.ID_C_EDITOR_TYPE, editorTypeOpt);
 
             transaction.commit();
 
@@ -205,6 +195,36 @@ public class UpgradeService {
     }
 
     /**
+     * Upgrade database tables.
+     *
+     * @throws Exception exception
+     */
+    private void upgradeTables() throws Exception {
+        final Connection connection = Connections.getConnection();
+        final Statement statement = connection.createStatement();
+
+        final String tablePrefix = Latkes.getLocalProperty("jdbc.tablePrefix") + "_";
+        statement.execute("CREATE TABLE `" + tablePrefix + "category` (\n" +
+                "  `oId` varchar(19) NOT NULL,\n" +
+                "  `categoryTitle` varchar(64) NOT NULL,\n" +
+                "  `categoryURI` varchar(32) NOT NULL,\n" +
+                "  `categoryDescription` text NOT NULL,\n" +
+                "  `categoryOrder` int(11) NOT NULL,\n" +
+                "  `categoryTagCnt` int(11) NOT NULL,\n" +
+                "  PRIMARY KEY (`oId`)\n" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+        statement.execute("CREATE TABLE `" + tablePrefix + "category_tag` (\n" +
+                "  `oId` varchar(19) NOT NULL,\n" +
+                "  `category_oId` varchar(19) NOT NULL,\n" +
+                "  `tag_oId` varchar(19) NOT NULL,\n" +
+                "  PRIMARY KEY (`oId`)\n" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+        statement.close();
+        connection.commit();
+        connection.close();
+    }
+
+    /**
      * Upgrades users.
      * <p>
      * Password hashing.
@@ -218,11 +238,9 @@ public class UpgradeService {
         for (int i = 0; i < users.length(); i++) {
             final JSONObject user = users.getJSONObject(i);
             final String email = user.optString(User.USER_EMAIL);
-
             user.put(UserExt.USER_AVATAR, Thumbnails.getGravatarURL(email, "128"));
 
             userRepository.update(user.optString(Keys.OBJECT_ID), user);
-
             LOGGER.log(Level.INFO, "Updated user[email={0}]", email);
         }
     }
@@ -236,14 +254,12 @@ public class UpgradeService {
         LOGGER.log(Level.INFO, "Adds a property [articleEditorType] to each of articles");
 
         final JSONArray articles = articleRepository.get(new Query()).getJSONArray(Keys.RESULTS);
-
         if (articles.length() <= 0) {
             LOGGER.log(Level.TRACE, "No articles");
             return;
         }
 
         Transaction transaction = null;
-
         try {
             for (int i = 0; i < articles.length(); i++) {
                 if (0 == i % STEP || !transaction.isActive()) {
@@ -251,9 +267,7 @@ public class UpgradeService {
                 }
 
                 final JSONObject article = articles.getJSONObject(i);
-
                 final String articleId = article.optString(Keys.OBJECT_ID);
-
                 LOGGER.log(Level.INFO, "Found an article[id={0}]", articleId);
                 article.put(Article.ARTICLE_EDITOR_TYPE, "tinyMCE");
 
@@ -296,7 +310,6 @@ public class UpgradeService {
         message.setHtmlBody(langPropsService.get("skipVersionMailBody"));
 
         MAIL_SVC.send(message);
-
         LOGGER.info("Send an email to the user who upgrades Solo with a discontinuous version.");
     }
 }
